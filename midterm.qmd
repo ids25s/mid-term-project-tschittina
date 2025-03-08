@@ -87,4 +87,11 @@ to_drop = ['street_name', 'x_coordinate_(state_plane)',
 df = df.drop(columns=to_drop)
 ```
 
+Next, we'd like to examine the efficiency gain from using the Arrow feather 
+format compared to csv. The feather file is created by reading in the data from 
+the csv and storing it in a new dataframe. Then, 
+`df.to_feather('data/nycflood2024.feather')` creates the file. The original csv 
+is **5.82 MB** and `nycflood2024.feather` is **1.85 MB**. The feather format is 
+*68%* smaller than the csv, making it far more efficient for storage.
+
 ### (d)
