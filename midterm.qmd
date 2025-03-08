@@ -47,3 +47,18 @@ df['closed_date'] = pd.to_datetime(df['closed_date'],
 df['incident_zip'] = df['incident_zip'].fillna(0).astype(int).astype(str)
 ```
 
+### (b) Summarize missing information
+
+The method `df.info()` is used to summarize missing information. It reveals 
+that 11 columns are completely null. By referencing the website's explanation 
+of these missing variables, we see that none of them pertain to flood data. 
+Therefore, it is safe to drop these columns; they will not provide any insight 
+or predictive power to our model.
+
+```{python}
+# drop entirely null columns
+df = df.dropna(axis=1, how='all')
+```
+
+This leaves us with 30 columns, most of which are missing little to no 
+information.
