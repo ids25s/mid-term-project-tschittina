@@ -62,3 +62,29 @@ df = df.dropna(axis=1, how='all')
 
 This leaves us with 30 columns, most of which are missing little to no 
 information.
+
+### (c) Redundant information and feather format
+
+Any column consisting of one unique value will not provide any insight we can 
+leverage in our model. Their lack of variation makes them redundant.
+
+```{python}
+# identify and drop columns with no variation
+to_drop = list(df.columns[df.nunique() == 1])
+df = df.drop(columns=to_drop)
+```
+
+Now, we can reference the website's data dictionary to identify other columns 
+that may be unnecessary. Our search indicates `street_name` may be redundant 
+given we already have `incident_address`. Further inspection reveals this to be 
+the case. We also find that much of the geographic/location data is repeated in 
+various columns. We will drop all of these redundant variables.
+
+```{python}
+# drop other redundant columns
+to_drop = ['street_name', 'x_coordinate_(state_plane)',
+           'y_coordinate_(state_plane)', 'bbl', 'park_borough', 'location']
+df = df.drop(columns=to_drop)
+```
+
+### (d)
