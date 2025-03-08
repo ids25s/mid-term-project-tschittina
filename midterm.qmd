@@ -19,3 +19,31 @@ format:
 
 ### (a) Import Data
 
+After reading in the dataset, we rename the columns in accordance with standard 
+naming conventions. Next, we convert the datatype of a few columns we know will 
+be important later. The first two columns, `created_date` and `closed_date`, 
+are converted to datetime objects, and `incident_zip` is recast to contain 
+strings. For the sake of the conversion, any `NaN` in `incident_zip` is 
+replaced by the value 0, which we will handle later.
+
+```{python}
+import pandas as pd
+import numpy as np
+
+# read coordinates in as 32-bit float
+df = pd.read_csv('data/nycflood2024.csv',
+                 dtype={'Latitude': np.float32, 'Longitude': np.float32,})
+
+# ensure columns comply with naming conventions
+df.columns = df.columns.str.lower().str.replace(' ', '_')
+
+# convert to datetime objects
+df['created_date'] = pd.to_datetime(df['created_date'],
+                                    format='%m/%d/%Y %I:%M:%S %p')
+df['closed_date'] = pd.to_datetime(df['closed_date'],
+                                   format='%m/%d/%Y %I:%M:%S %p')
+
+# convert zip codes to strings, convert NaN to zero (fill later)
+df['incident_zip'] = df['incident_zip'].fillna(0).astype(int).astype(str)
+```
+
