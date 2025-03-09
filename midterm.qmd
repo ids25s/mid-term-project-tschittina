@@ -95,3 +95,41 @@ is **5.82 MB** and `nycflood2024.feather` is **1.85 MB**. The feather format is
 *68%* smaller than the csv, making it far more efficient for storage.
 
 ### (d)
+
+Inspecting `borough` we find that there are two missing entries. We also recall 
+from part (a) that four missing zip codes were set to 0. However, it turns out 
+that this missingness is unrelated.
+
+```{python}
+# lookup borough information for missing zip codes
+df.loc[(df['incident_zip'] == '0'), ['incident_zip', 'borough']]
+```
+
+This means we can easily find the missing borough information using the intact 
+zip codes. Both rows where `borough` is unspecified correspond to a zip code of 
+11208. Searching our dataframe, we find that this zip code is a part of 
+Brooklyn. We update the dataframe accordingly.
+
+```{python}
+# fill in borough data
+df.loc[(df['borough'] == 'Unspecified'), ['borough']] = 'Brooklyn'
+```
+
+Next, we try to fill in the missing zip codes using `latitude` and `longitude`, 
+but there is a problem.
+
+```{python}
+df.loc[(df['incident_zip'] == '0'), ['latitude', 'longitude']]
+```
+
+The four missing zip codes correspond to the four missing coordinates. So, 
+there is no way to recover the zip codes. Since our model will rely on zip code 
+specific information, we will drop these rows.
+
+```{python}
+# drop rows with unrecoverable zip codes
+df = df.drop(index=[58, 189, 1903, 6333])
+```
+
+### (e) Date errors
+
