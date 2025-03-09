@@ -190,3 +190,15 @@ df.loc[df['closed_date'].isna(), ['created_date', 'status', 'descriptor']].head(
 
 ### (f) Suggestions to data curator
 
+I have the following suggestions for the data curator:
+
++ Consider the feather format for more efficient storage. The full service 
+  request dataset is very large, so file format is important.
++ Look to reduce the dimensionality of the dataset. Several of the variables 
+  are repetitive. For example, storing the latitude and longitude as a 
+  coordinate pair is redundant given there are already separate columns for 
+  both.
++ Include additional details regarding data collection and entry where 
+  appropriate. The data dictionary online is helpful, but there are certain 
+  trends in the data that could be explained with a brief overview of how data 
+  is gathered (like in part e, with the dates that occur exactly on the hour).  
