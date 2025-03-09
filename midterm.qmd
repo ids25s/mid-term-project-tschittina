@@ -39,9 +39,11 @@ df.columns = df.columns.str.lower().str.replace(' ', '_')
 
 # convert to datetime objects
 df['created_date'] = pd.to_datetime(df['created_date'],
-                                    format='%m/%d/%Y %I:%M:%S %p')
+                                    format='%m/%d/%Y %I:%M:%S %p', 
+                                    errors='coerce')
 df['closed_date'] = pd.to_datetime(df['closed_date'],
-                                   format='%m/%d/%Y %I:%M:%S %p')
+                                   format='%m/%d/%Y %I:%M:%S %p', 
+                                   errors='coerce')
 
 # convert zip codes to strings, convert NaN to zero (fill later)
 df['incident_zip'] = df['incident_zip'].fillna(0).astype(int).astype(str)
@@ -122,9 +124,9 @@ but there is a problem.
 df.loc[(df['incident_zip'] == '0'), ['latitude', 'longitude']]
 ```
 
-The four missing zip codes correspond to the four missing coordinates. So, 
-there is no way to recover the zip codes. Since our model will rely on zip code 
-specific information, we will drop these rows.
+The four missing zip codes correspond to the four missing coordinates. Without 
+geocodes, there is no way to recover the zip codes. Since our model will rely 
+on zip code specific information, we will drop these rows.
 
 ```{python}
 # drop rows with unrecoverable zip codes
@@ -132,4 +134,59 @@ df = df.drop(index=[58, 189, 1903, 6333])
 ```
 
 ### (e) Date errors
+
+The values in `created_date` should be strictly less than those in 
+`closed_date` because it must take time for the complaint to be resolved. 
+However, `(df['created_date'] >= df['closed_date']).sum()` indicates there are 
+161 observations where this inequality fails. In 160 of these observations, the 
+created and closed times are exactly equal; there is one case where the 
+`created_date > closed_date`. These errors might be explained by a default 
+procedure for data entry when the start or end time is lost. If one time is 
+missing and cannot be estimated, it may be automatically set to the value of 
+the other. Otherwise, such discrepancies are likely the result of some error. 
+Regardless, these observations will not be useful for modeling response time. 
+They are unrealistic and introduce bias to the model, so we will drop them.
+
+```{python}
+# identify and drop rows with severe time errors
+to_drop = df[(df['created_date'] >= df['closed_date'])].index
+df = df.drop(index=to_drop)
+```
+
+We can investigate for other suspicious entries in `created_date` and 
+`closed_date`. Let's look at dates reported exactly on the hour, down to the 
+second.
+
+```{python}
+import datetime
+
+# check for times reported exactly on the hour
+df.loc[(df['created_date'].dt.minute == 0) & (df['created_date'].dt.second == 0), ['created_date']]
+```
+
+There are three such occurrences in `created_date`. There are many more in 
+`closed_date`.
+
+```{python}
+# find number of times reported exactly on the hour
+df.loc[(df['closed_date'].dt.minute == 0) & (df['closed_date'].dt.second == 0), ['closed_date']].shape
+```
+
+There are 1219 times reported exactly on the hour in `closed_date`. However, 
+there is a probable explanation for this. Whenever the exact time a complaint 
+is opened or closed is uncertain, it may be approximated be the nearest hour. 
+These observations should not be harmful to the model, since they are still 
+realistic. Therefore, they do not need to be dropped.
+
+Although `created_date` is entirely non-null, there are 208 `NaT` entries in 
+`closed_date`. These may be interpreted as service requests that have not been 
+resolved yet. The status for all these observations is one of 'Open', 
+'Started', or 'Assigned'. However, they may also be the result of an error 
+in data entry. For now, we will leave them in the dataset.
+
+```{python}
+df.loc[df['closed_date'].isna(), ['created_date', 'status', 'descriptor']].head()
+```
+
+### (f) Suggestions to data curator
 
