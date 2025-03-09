@@ -185,6 +185,7 @@ resolved yet. The status for all these observations is one of 'Open',
 in data entry. For now, we will leave them in the dataset.
 
 ```{python}
+# get dataframe for entries with no close date
 df.loc[df['closed_date'].isna(), ['created_date', 'status', 'descriptor']].head()
 ```
 
@@ -201,4 +202,69 @@ I have the following suggestions for the data curator:
 + Include additional details regarding data collection and entry where 
   appropriate. The data dictionary online is helpful, but there are certain 
   trends in the data that could be explained with a brief overview of how data 
-  is gathered (like in part e, with the dates that occur exactly on the hour).  
+  is gathered (like in part e, with the dates that occur exactly on the hour).
+
+## Exploratory Analysis
+
+### (a) Visualizing complaints
+
+We'll use `gmplot` to overlay the complaints on a map of NYC. First though, the 
+values in `descriptor` need to be reformatted.
+
+```{python}
+# rename complaint type values
+df = df.replace({'Street Flooding (SJ)': 'SF',
+                 'Catch Basin Clogged/Flooding (Use Comments) (SC)': 'CB'})
+```
+
+Now the column `descriptor` is easier to work with. Let's separate the 
+coordinates for flood complaints from basin complaints.
+
+```{python}
+# create different lists of coordinates for SF and CB
+flood_coords = df.loc[df['descriptor'] == 'SF', ['latitude', 'longitude']]
+basin_coords = df.loc[df['descriptor'] == 'CB', ['latitude', 'longitude']]
+flood_lats = flood_coords['latitude']
+flood_lons = flood_coords['longitude']
+basin_lats = basin_coords['latitude']
+basin_lons = basin_coords['longitude']
+```
+
+Now, we're ready to visualize the location of SF and CB complaints using 
+`gmplot`. On the map below, red points are street floods and blue points are 
+catch basin incidents.
+
+```{python}
+import gmplot
+
+# read in API key
+apikey = open('gmapKey.txt').read().strip()
+
+# overlay coordinate to map of NYC
+gmap = gmplot.GoogleMapPlotter(40.7128, -74.0600, 11.5, apikey=apikey)
+gmap.scatter(flood_lats.dropna(), flood_lons.dropna(), marker=False, color='red',
+             size=60, fa=0.6)
+gmap.scatter(basin_lats.dropna(), basin_lons.dropna(), marker=False, color='blue',
+             size=60, fa=0.6)
+gmap.draw('basin_flood_map.html')
+```
+
+![SF (red) and CB (blue) complaints in NYC, 2024](flood_basin_loc.png)
+
+The map shows the relative frequency of the two events, compared to each other. 
+It also highlights certain hotspots, like at the Rockaway Beach.
+
+### (b) Constructing response time
+
+Our goal is to model the time it takes for complaints to be resolved. So, we 
+will need to introduce the variable `response_time`, constructed from 
+`created_date` and `closed_date`.
+
+```{python}
+# create response time
+df['response_time'] = df['closed_date'] - df['created_date']
+df['response_time'].head()
+```
+
+### (c) Visualize response time by descriptor and borough
+
