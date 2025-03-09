@@ -114,7 +114,7 @@ Brooklyn. We update the dataframe accordingly.
 
 ```{python}
 # fill in borough data
-df.loc[(df['borough'] == 'Unspecified'), ['borough']] = 'Brooklyn'
+df.loc[(df['borough'] == 'Unspecified'), ['borough']] = 'BROOKLYN'
 ```
 
 Next, we try to fill in the missing zip codes using `latitude` and `longitude`, 
@@ -268,3 +268,59 @@ df['response_time'].head()
 
 ### (c) Visualize response time by descriptor and borough
 
+We can visualize `response_time` with histograms. First, lets look at the 
+distribution of `response_time` for SF and CB separately.
+
+```{python}
+from plotnine import ggplot, aes, geom_histogram, facet_wrap
+
+# convert to hours and transform for sake of graphing
+df['response_time_hours'] = df['response_time'].apply(lambda x: x.total_seconds()) / 3600
+df['response_time_hours_sqrt'] = df['response_time_hours'].apply(lambda x: np.sqrt(x))
+
+# select columns to be referenced while plotting
+hist_df = df[['response_time_hours_sqrt', 'descriptor', 'borough']]
+
+(
+    ggplot(hist_df.dropna(), aes('response_time_hours_sqrt'))
+    + geom_histogram(binwidth=4, fill='skyblue')
+    + facet_wrap('~descriptor')
+)
+```
+
+Note that we transformed the response time in hours by its sqaure root, to make 
+the visuals more interpretable. The distribution of response times resembles a 
+gamma distribution. It quickly rises and then decays exponentially. The 
+distribution is clearer if we remove the largest outliers and adjust the bin 
+width.
+
+```{python}
+# select largest outliers
+drop = list(df['response_time_hours_sqrt'].nlargest(3).index)
+
+# create histogram for each descriptor
+(
+    ggplot(hist_df.drop(index=drop).dropna(), aes('response_time_hours_sqrt'))
+    + geom_histogram(binwidth=2, fill='skyblue')
+    + facet_wrap('~descriptor')
+)
+```
+
+Next we'll look at the distributions for `response_time` across the different 
+boroughs.
+
+```{python}
+# create histogram for each borough
+(
+    ggplot(hist_df.drop(index=drop).dropna(), aes('response_time_hours_sqrt'))
+    + geom_histogram(binwidth=2, fill='skyblue')
+    + facet_wrap('~borough')
+)
+```
+
+Again, the distributions appear to be gamma/exponential. We see that Brooklyn 
+and Queens get many more complaints than the rest of NYC. The distributions for 
+the Bronx and Manhattan are flatter than the rest, and contain most of the 
+outliers.
+
+### (d) Hypothesis testing
