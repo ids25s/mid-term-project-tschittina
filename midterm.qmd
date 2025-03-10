@@ -718,3 +718,18 @@ The results of the logistic regression are summarized in simple terms below.
 + Better predictors are needed to improve the predictive power of the model. 
   This means choosing a different set of predictors, or creating new, more 
   informative predictors from existing data.
+
+## Modeling Count Data
+
+### (a) Aggregate counts of SF and CB
+
+First, we create time series of complaints by day for each zip code.
+
+```{python}
+groups = ['incident_zip', 'created_day']
+time_series = df.groupby(groups)['descriptor'].agg(complaint_count='count')
+time_series.head()
+```
+
+### (b) Merge rainfall data
+
