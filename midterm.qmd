@@ -460,3 +460,75 @@ result.pvalue
 A very small p-value once again indicates dependence between the variable. We 
 reject the null hypothesis in favor of the claim that `over3d` and `borough` 
 depend on one another.
+
+## Modeling Occurence of Overly Long Response Time
+
+### (a) Creating dataset for the model
+
+Our model will include the following covariates:
+
++ `descriptor`
++ `borough`
++ `night` (occurred from 5pm to 5am)
++ `winter` (occurred from Nov 30 to March 1)
++ `pop_density`
++ `Unemployed` (count in incident zip code)
++ `Median Household Income` (in zip code)
++ `Median Home Value` (in zip code)
+
+The dataset will be constructed from the service request data we've been using, 
+`nyc_zip_areas.feather`, and `acs2023.feather`. First, let's read in the zip 
+code and area data.
+
+```{python}
+# read in other datasets
+acs = pd.read_feather('data/acs2023.feather')
+areas = pd.read_feather('data/nyc_zip_areas.feather')
+
+# merge on zip code
+acs = acs.merge(areas, left_on='ZIP Code', right_on='modzcta', how='left')
+
+# calculate population density
+acs['pop_density'] = acs['Total Population'] / acs['land_area_sq_miles']
+
+# fill missing population densities with median
+median_density = acs['pop_density'].median()
+acs.loc[:, ['pop_density']] = acs['pop_density'].fillna(median_density)
+
+# select variables of interest
+acs = acs[['Median Household Income', 'Unemployed', 'Median Home Value',
+           'ZIP Code', 'pop_density']]
+```
+
+Now, let's go back to the original flood dataframe and construct `night` and 
+`season`.
+
+```{python}
+# store hour and date service request was created separately
+df['created_hour'] = df['created_date'].apply(lambda x: x.strftime('%H:%M:%S'))
+df['created_day'] = df['created_date'].apply(lambda x: x.strftime('%m-%d'))
+
+# create column to indicate if complaint occurred at night
+df['night'] = ((df['created_hour'] < '05:00:00') | (df['created_hour'] >= '17:00:00'))
+df['night'] = df['night'].astype(int)
+
+# create column to indicate if complaint occurred during winter
+df['winter'] = ((df['created_day'] < '03-01') | (df['created_day'] > '11-30'))
+df['winter'] = df['winter'].astype(int)
+```
+
+Next, we'll select a subset of the flood dataframe and merge it with the ACS 
+dataframe.
+
+```{python}
+# select covariates and target
+model_df = df[['descriptor', 'incident_zip', 'borough',
+               'night', 'winter', 'over3d']]
+
+# merge with acs data
+model_df = model_df.merge(acs, left_on='incident_zip', right_on='ZIP Code', 
+                          how='left')
+
+# drop 30 rows with NaN, only 0.3% of total observations
+model_df.dropna(axis=0, inplace=True)
+```
