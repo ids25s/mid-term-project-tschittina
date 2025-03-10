@@ -288,11 +288,11 @@ hist_df = df[['response_time_hours_sqrt', 'descriptor', 'borough']]
 )
 ```
 
-Note that we transformed the response time in hours by its sqaure root, to make 
-the visuals more interpretable. The distribution of response times resembles a 
-gamma distribution. It quickly rises and then decays exponentially. The 
-distribution is clearer if we remove the largest outliers and adjust the bin 
-width.
+Note that we transformed the response time in hours by its square root, to make 
+the visuals more interpretable. The distribution of `response_time_hours_sqrt` 
+resembles a gamma distribution. It quickly rises and then decays exponentially. 
+The distribution is clearer if we remove the largest outliers and adjust the 
+bin width.
 
 ```{python}
 # select largest outliers
@@ -306,8 +306,8 @@ drop = list(df['response_time_hours_sqrt'].nlargest(3).index)
 )
 ```
 
-Next we'll look at the distributions for `response_time` across the different 
-boroughs.
+Next we'll look at the distributions for `response_time_hours_sqrt` across the 
+different boroughs.
 
 ```{python}
 # create histogram for each borough
@@ -324,3 +324,69 @@ the Bronx and Manhattan are flatter than the rest, and contain most of the
 outliers.
 
 ### (d) Hypothesis testing
+
+We'd like to test three pairs of hypotheses at $\alpha = 0.05$:
+
+1. $H_o$: The mean response time is the same for SF and CB<br>
+   $H_a$: The mean response time for SF is different from CB
+
+2. $H_o$: The mean response time is the same for all boroughs<br>
+   $H_a$: At least one mean response time is different across the boroughs
+
+3. $H_o$: There is no significant interaction between descriptor and borough<br>
+   $H_a$: There is significant interaction between descriptor and borough
+
+The corresponding test is a two-way ANOVA. This requires that each sample is 
+normally distributed, which we suspect is not the case for the original data. A 
+log transformation coerces the data to follow an approximately normal 
+distribution, as shown below.
+
+```{python}
+# log transformation
+df['response_time_hours_log'] = df['response_time_hours'].apply(lambda x: np.log(x))
+
+# select columns to be referenced while plotting
+hist_df = df[['response_time_hours_log', 'descriptor', 'borough']]
+
+# plot by descriptor
+(
+    ggplot(hist_df.dropna(), aes('response_time_hours_log'))
+    + geom_histogram(binwidth=1, fill='skyblue')
+    + facet_wrap('~descriptor')
+)
+
+#plot by borough
+(
+    ggplot(hist_df.dropna(), aes('response_time_hours_log'))
+    + geom_histogram(binwidth=1, fill='skyblue')
+    + facet_wrap('~borough')
+)
+```
+
+The package `statsmodels` is used to conduct the test.
+
+```{python}
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+# data for two-way ANOVA
+test_df = df[['response_time_hours_log', 'descriptor', 'borough']]
+
+# perform two-way ANOVA
+model = ols('response_time_hours_log ~ C(descriptor) + C(borough)\
+            + C(descriptor):C(borough)', data=test_df).fit()
+result = sm.stats.anova_lm(model, type=2)
+
+result
+```
+
+All three p-values are very small. Therefore, the data indicates all three null 
+hypotheses should be rejected. We conclude the following:
+
++ Mean response time is different for SF and CB
++ Mean response time is not consistent across the five boroughs
++ The difference in mean response time for SF and CB is impacted by borough
+
+Note that these conclusions hold for the log-transformed data. In simple terms, 
+we have found evidence that response time does depend on the type and location 
+of the service request. 
