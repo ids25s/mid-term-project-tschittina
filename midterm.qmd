@@ -652,3 +652,32 @@ right cell. In simple terms, the model:
   complaint will have a slow response, it is only right a third of the time.
 
 ### (d) ROC curve
+
+The ROC curve and ROC AUC are other metrics to judge model performance. Let's 
+plot the ROC curve and find ROC AUC.
+
+```{python}
+from sklearn.metrics import roc_curve, auc
+
+# get ROC and ROC AUC values
+pred = best_model.predict_proba(X_test)
+roc = roc_curve(y_test, pred[:, 1])
+roc_auc = auc(roc[0], roc[1])
+
+# plot ROC curve
+plt.figure(figsize=(8, 6))
+plt.plot(roc[0], roc[1], color='blue', label=f'ROC curve (AUC = {roc_auc:.2f})')
+plt.plot([0, 1], [0, 1], color='gray', linestyle='--')  # 45 degree line
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC) Curve')
+plt.legend(loc='lower right')
+plt.show()
+```
+
+The graph again shows the model outperforms a random classifier, represented by 
+the gray horizontal line. However, ROC AUC is only 0.68, which is not very high 
+(the area under the random classifier curve is 0.5). Put simply, the model 
+classifies complaints only marginally better than random guessing would.
