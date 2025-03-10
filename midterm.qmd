@@ -404,3 +404,59 @@ df['over3d'] = df['over3d'].astype(int)
 ```
 
 ### (f) Hypothesis testing of `over3d`
+
+`over3d` is a categorical variable, so we'll need to construct contigency 
+tables to perform the desired tests. First, lets look at the relationship 
+between `over3d` and `descriptor`.
+
+```{python}
+# contingecy table of descriptor and over3d
+descriptor_table = pd.crosstab(df['descriptor'], df['over3d'])
+descriptor_table
+```
+
+The appropriate test is a chi-square test of independence. The test assumes 
+there is at least five observations in each cell of the contingency table, 
+which there are. The hypotheses are:
+
++ $H_o$: The variables `over3d` and `descriptor` are independent
++ $H_a$: The variables `over3d` and `descriptor` are dependent
+
+Assume $\alpha = 0.05$.
+
+```{python}
+from scipy.stats import chi2_contingency
+
+# chi-squared test
+result = chi2_contingency(descriptor_table)
+result.pvalue
+```
+
+The resulting p-value is much smaller than 0.05, so the data rejects the null 
+hypothesis. We conclude that `over3d` depends on `descriptor`. This is an 
+expected result, as earlier we saw that mean response time differs based on the 
+type of complaint.
+
+Next, we repeat a similar procedure for `over3d` and `borough`. First, we need 
+a contingency table.
+
+```{python}
+# contingency table of borough and over3d
+borough_table = pd.crosstab(df['borough'], df['over3d'])
+borough_table
+```
+
+Assume $\alpha = 0.05$. The hypotheses are:
+
++ $H_o$: The variables `over3d` and `borough` are independent
++ $H_a$: The variables `over3d` and `borough` are dependent
+
+```{python}
+# chi-squared test
+result = chi2_contingency(borough_table)
+result.pvalue
+```
+
+A very small p-value once again indicates dependence between the variable. We 
+reject the null hypothesis in favor of the claim that `over3d` and `borough` 
+depend on one another.
