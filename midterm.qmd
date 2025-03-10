@@ -528,9 +528,127 @@ model_df = df[['descriptor', 'incident_zip', 'borough',
 # merge with acs data
 model_df = model_df.merge(acs, left_on='incident_zip', right_on='ZIP Code', 
                           how='left')
+                        
+# drop zip code columns after merge
+model_df.drop(columns=['ZIP Code', 'incident_zip'], inplace=True)
 
 # drop 30 rows with NaN, only 0.3% of total observations
 model_df.dropna(axis=0, inplace=True)
 ```
 
+Lastly, we need to convert `descriptor` and `borough` to numeric data via 
+one-hot encoding.
+
+```{python}
+# one-hot encoding
+model_df = pd.get_dummies(model_df, columns=['borough', 'descriptor'], 
+                                             dtype=int)
+```
+
+Our dataset is ready for modeling.
+
 ### (b) Logistic regression
+
+We'll reserve 20% of the data for testing the model. After the split, the 
+features are transformed.
+
+```{python}
+from sklearn.model_selection import train_test_split
+
+# create set of predictors and response
+X = model_df.drop(columns=['over3d'])
+y = model_df['over3d']
+
+# 80-20 split
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=1234,
+                                                    test_size=0.2)
+
+# scale features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+```
+
+Next, we build and fit a logistic regression with L1 regularization. The 
+parameter `C` controls the strength of the L1 penalty, and is chosen via 
+cross-validation. The parameter `class_weight` is set to accomodate 
+imbalance in the data (minority class makes up ~25% of data).
+
+```{python}
+from sklearn.linear_model import LogisticRegression
+
+# create and fit model
+model = LogisticRegression(penalty='l1', solver='liblinear',
+                           class_weight='balanced', max_iter=1000)
+
+# cross-validation to choose 'C'
+param_grid = {
+    'C': np.logspace(-6, 6, 20)
+}
+grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=5,
+                           scoring='f1', verbose=1, n_jobs=-1)
+grid_search.fit(X_train, y_train)
+best_model = grid_search.best_estimator_
+
+print('The optimal value of C was', grid_search.best_params_['C'])
+```
+
+### (c) Confusion matrix
+
+We'll test our model on `X_train` and visualize the confusion matrix.
+
+```{python}
+from sklearn.metrics import (
+    accuracy_score, 
+    precision_score,
+    recall_score,
+    f1_score
+)
+
+# make predictions
+yhat = best_model.predict(X_test)
+
+# compute performance scores
+accuracy = round(accuracy_score(y_test, yhat), 2)
+precision = round(precision_score(y_test, yhat), 2)
+recall = round(recall_score(y_test, yhat), 2)
+f1 = round(f1_score(y_test, yhat), 2)
+
+print(f'Accuracy: {accuracy}')
+print(f'Precision: {precision}')
+print(f'Recall: {recall}')
+print(f'F1: {f1}')
+```
+
+The model offers some predictive power (better than randomly guessing), but the 
+performance metrics are relatively poor. This can be visualized in a confusion 
+matrix.
+
+```{python}
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# create confusion matrix
+cm = confusion_matrix(y_test, yhat)
+
+# plot confusion matrix
+sns.heatmap(cm, annot=True, xticklabels=['Not Long', 'Long'], 
+            yticklabels=['Not Long', 'Long'], cmap='flare', fmt='g',
+            linewidth=1, linecolor='white')
+plt.xlabel('Prediction')
+plt.ylabel('Actual')
+plt.show()
+```
+
+The confusion matrix reveals the main issue with the model. It over-predicts 
+the minority class of `over3d`. That explains the large quantity in the upper 
+right cell. In simple terms, the model:
+
++ Provides better predictions of overly long response time than you would have 
+  from guessing randomly. However, it is not that much better.
++ Is decent at capturing all the instances of an overly long response time.
++ Predicts an overly long response time too often. When it predicts a 
+  complaint will have a slow response, it is only right a third of the time.
+
+### (d) ROC curve
