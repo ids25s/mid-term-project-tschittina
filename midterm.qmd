@@ -532,3 +532,5 @@ model_df = model_df.merge(acs, left_on='incident_zip', right_on='ZIP Code',
 # drop 30 rows with NaN, only 0.3% of total observations
 model_df.dropna(axis=0, inplace=True)
 ```
+
+### (b) Logistic regression
