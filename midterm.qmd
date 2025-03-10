@@ -681,3 +681,27 @@ The graph again shows the model outperforms a random classifier, represented by
 the gray horizontal line. However, ROC AUC is only 0.68, which is not very high 
 (the area under the random classifier curve is 0.5). Put simply, the model 
 classifies complaints only marginally better than random guessing would.
+
+### (e) Significance of predictors
+
+Since we standardized our data, the relative magnitude (absolute value) of each 
+coefficient gives some insight into the importance of the corresponding 
+predictor.
+
+```{python}
+# dataframe of predictor coefficients
+predictors = model_df.drop(columns=['over3d']).columns
+coef = pd.DataFrame(np.abs(best_model.coef_.ravel()), predictors)
+coef
+```
+
+The lasso shrunk most of the coefficients to zero, meaning those predictors are 
+not important. The table us the most important piece of information is whether 
+or not the service request originates from Brooklyn. This does make some sense, 
+since Brooklyn's location puts it at a higher risk for floods.
+
+### (f) Summary of logistic regression
+
+The results of the logistic regression are summarized in simple terms below.
+
++ 
