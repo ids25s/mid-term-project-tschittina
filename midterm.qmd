@@ -323,7 +323,7 @@ and Queens get many more complaints than the rest of NYC. The distributions for
 the Bronx and Manhattan are flatter than the rest, and contain most of the 
 outliers.
 
-### (d) Hypothesis testing
+### (d) Hypothesis testing of response time
 
 We'd like to test three pairs of hypotheses at $\alpha = 0.05$:
 
@@ -389,4 +389,18 @@ hypotheses should be rejected. We conclude the following:
 
 Note that these conclusions hold for the log-transformed data. In simple terms, 
 we have found evidence that response time does depend on the type and location 
-of the service request. 
+of the service request.
+
+### (e) Constructing target variable
+
+Ultimately, we want to predict whether a service request will take three or 
+more days to be resolved. We need to construct our target variable `over3d`. 
+If we intepret values of `NaT` as unresolved complaints, we can count them as 
+taking more than three days.
+
+```{python}
+df['over3d'] = (df['response_time'].dt.days >= 3) | (df['response_time'].isna())
+df['over3d'] = df['over3d'].astype(int)
+```
+
+### (f) Hypothesis testing of `over3d`
