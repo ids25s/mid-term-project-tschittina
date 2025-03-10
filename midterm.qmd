@@ -697,11 +697,24 @@ coef
 
 The lasso shrunk most of the coefficients to zero, meaning those predictors are 
 not important. The table us the most important piece of information is whether 
-or not the service request originates from Brooklyn. This does make some sense, 
-since Brooklyn's location puts it at a higher risk for floods.
+or not the service request originates from Brooklyn. The coefficient is 
+actually negative, so service requests in Brooklyn are less likely to take a 
+long time to resolve.
 
 ### (f) Summary of logistic regression
 
 The results of the logistic regression are summarized in simple terms below.
 
-+ 
++ The model classifies response time better than randomly guessing, but only 
+  marginally.
++ The model predicts a complaint will have a response time over three days too 
+  often. However, this means it does an alright job of identifying all 
+  instances of a long response time.
++ Location is the most important factor in predicting whether there will be an 
+  overly long response time. Service requests from Brooklyn are especially 
+  unlikely to have a long response time. Also, clogged basins generally have a 
+  longer response time than street floods, which makes sense as they're less 
+  serious.
++ Better predictors are needed to improve the predictive power of the model. 
+  This means choosing a different set of predictors, or creating new, more 
+  informative predictors from existing data.
