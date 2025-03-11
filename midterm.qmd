@@ -98,7 +98,7 @@ is **5.82 MB** and `nycflood2024.feather` is **1.85 MB**. The feather format is
 
 ### (d)
 
-Inspecting `borough` we find that there are two missing entries. We also recall 
+Inspecting `borough`, we find that there are two missing entries. We also recall 
 from part (a) that four missing zip codes were set to 0. However, it turns out 
 that this missingness is unrelated.
 
@@ -143,9 +143,10 @@ created and closed times are exactly equal; there is one case where the
 `created_date > closed_date`. These errors might be explained by a default 
 procedure for data entry when the start or end time is lost. If one time is 
 missing and cannot be estimated, it may be automatically set to the value of 
-the other. Otherwise, such discrepancies are likely the result of some error. 
-Regardless, these observations will not be useful for modeling response time. 
-They are unrealistic and introduce bias to the model, so we will drop them.
+the other. Otherwise, such discrepancies are likely the result of some human 
+error. Regardless, these observations will not be useful for modeling response 
+time. They are unrealistic and introduce bias to the model, so we will drop 
+them.
 
 ```{python}
 # identify and drop rows with severe time errors
@@ -161,7 +162,8 @@ second.
 import datetime
 
 # check for times reported exactly on the hour
-df.loc[(df['created_date'].dt.minute == 0) & (df['created_date'].dt.second == 0), ['created_date']]
+df.loc[(df['created_date'].dt.minute == 0) & 
+            (df['created_date'].dt.second == 0), ['created_date']]
 ```
 
 There are three such occurrences in `created_date`. There are many more in 
@@ -174,15 +176,15 @@ df.loc[(df['closed_date'].dt.minute == 0) & (df['closed_date'].dt.second == 0), 
 
 There are 1219 times reported exactly on the hour in `closed_date`. However, 
 there is a probable explanation for this. Whenever the exact time a complaint 
-is opened or closed is uncertain, it may be approximated be the nearest hour. 
-These observations should not be harmful to the model, since they are still 
+is opened or closed is uncertain, it may be approximated by the nearest hour. 
+These observations will not be harmful to the model, since they are still 
 realistic. Therefore, they do not need to be dropped.
 
 Although `created_date` is entirely non-null, there are 208 `NaT` entries in 
 `closed_date`. These may be interpreted as service requests that have not been 
 resolved yet. The status for all these observations is one of 'Open', 
-'Started', or 'Assigned'. However, they may also be the result of an error 
-in data entry. For now, we will leave them in the dataset.
+'Started', or 'Assigned' (see below). However, they may also be the result of 
+an error in data entry. For now, we will leave them in the dataset.
 
 ```{python}
 # get dataframe for entries with no close date
@@ -201,8 +203,9 @@ I have the following suggestions for the data curator:
   both.
 + Include additional details regarding data collection and entry where 
   appropriate. The data dictionary online is helpful, but there are certain 
-  trends in the data that could be explained with a brief overview of how data 
-  is gathered (like in part e, with the dates that occur exactly on the hour).
+  trends in the data that could be explained with a brief overview of how the 
+  data is gathered (like in part e, with the dates that occur exactly on the 
+  hour).
 
 ## Exploratory Analysis
 
@@ -218,7 +221,7 @@ df = df.replace({'Street Flooding (SJ)': 'SF',
 ```
 
 Now the column `descriptor` is easier to work with. Let's separate the 
-coordinates for flood complaints from basin complaints.
+coordinates of flood complaints from basin complaints.
 
 ```{python}
 # create different lists of coordinates for SF and CB
@@ -251,8 +254,8 @@ gmap.draw('basin_flood_map.html')
 
 ![SF (red) and CB (blue) complaints in NYC, 2024](flood_basin_loc.png)
 
-The map shows the relative frequency of the two events, compared to each other. 
-It also highlights certain hotspots, like at the Rockaway Beach.
+The map shows the relative and absolute frequency of the two events. It also 
+highlights certain hotspots, like at Rockaway Beach.
 
 ### (b) Constructing response time
 
@@ -391,7 +394,7 @@ Note that these conclusions hold for the log-transformed data. In simple terms,
 we have found evidence that response time does depend on the type and location 
 of the service request.
 
-### (e) Constructing target variable
+### (e) Constructing the target variable
 
 Ultimately, we want to predict whether a service request will take three or 
 more days to be resolved. We need to construct our target variable `over3d`. 
@@ -457,13 +460,13 @@ result = chi2_contingency(borough_table)
 result.pvalue
 ```
 
-A very small p-value once again indicates dependence between the variable. We 
+A very small p-value once again indicates dependence between the variables. We 
 reject the null hypothesis in favor of the claim that `over3d` and `borough` 
 depend on one another.
 
 ## Modeling Occurence of Overly Long Response Time
 
-### (a) Creating dataset for the model
+### (a) Creating the dataset for the model
 
 Our model will include the following covariates:
 
@@ -473,12 +476,12 @@ Our model will include the following covariates:
 + `winter` (occurred from Nov 30 to March 1)
 + `pop_density`
 + `Unemployed` (count in incident zip code)
-+ `Median Household Income` (in zip code)
-+ `Median Home Value` (in zip code)
++ `Median Household Income` (in incident zip code)
++ `Median Home Value` (in incident zip code)
 
 The dataset will be constructed from the service request data we've been using, 
-`nyc_zip_areas.feather`, and `acs2023.feather`. First, let's read in the zip 
-code and area data.
+as well as, `nyc_zip_areas.feather` and `acs2023.feather`. First, let's read in 
+the zip code and area data.
 
 ```{python}
 # read in other datasets
@@ -553,7 +556,8 @@ We'll reserve 20% of the data for testing the model. After the split, the
 features are transformed.
 
 ```{python}
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler
 
 # create set of predictors and response
 X = model_df.drop(columns=['over3d'])
@@ -645,11 +649,11 @@ The confusion matrix reveals the main issue with the model. It over-predicts
 the minority class of `over3d`. That explains the large quantity in the upper 
 right cell. In simple terms, the model:
 
-+ Provides better predictions of overly long response time than you would have 
++ Provides better predictions of overly long response time than you would get 
   from guessing randomly. However, it is not that much better.
 + Is decent at capturing all the instances of an overly long response time.
 + Predicts an overly long response time too often. When it predicts a 
-  complaint will have a slow response, it is only right a third of the time.
+  complaint will have a slow response, it is only correct a third of the time.
 
 ### (d) ROC curve
 
@@ -678,7 +682,7 @@ plt.show()
 ```
 
 The graph again shows the model outperforms a random classifier, represented by 
-the gray horizontal line. However, ROC AUC is only 0.68, which is not very high 
+the gray horizontal line. However, ROC AUC is only 0.71, which is not very high 
 (the area under the random classifier curve is 0.5). Put simply, the model 
 classifies complaints only marginally better than random guessing would.
 
@@ -696,8 +700,8 @@ coef
 ```
 
 The lasso shrunk most of the coefficients to zero, meaning those predictors are 
-not important. The table us the most important piece of information is whether 
-or not the service request originates from Brooklyn. The coefficient is 
+not important. The table tells us the most important piece of information is 
+whether or not the service request originates from Brooklyn. The coefficient is 
 actually negative, so service requests in Brooklyn are less likely to take a 
 long time to resolve.
 
@@ -741,8 +745,8 @@ counts.head()
 
 ### (b) Merge rainfall data
 
-The following reads in `data/rainfall_CP.csv` and merges it with the dataframe 
-from part (a).
+The following reads in `data/rainfall_CP.csv` and merges the total rainfall per 
+day with the dataframe from part (a).
 
 ```{python}
 # read in rainfall data
@@ -789,7 +793,7 @@ counts.drop(columns=['ZIP Code'], inplace=True)
 ### (d) Creating 1-day lag of precipitation and CB count
 
 In our model, we'll want to reference the previous day's rainfall and CB count 
-when predicting the current days SF count. We need to construct the covariates 
+when predicting the current day's SF count. We need to construct the covariates 
 `CBcount_Lag1` and `total_Lag1` (total = total rainfall).
 
 ```{python}
@@ -834,7 +838,7 @@ df_filtered = df_final[(df_final['date'] >= '2024-03-01') &
 ### (f) Poisson versus Negative Binomial regression
 
 A Poisson regression and Negative Binomial regression are both used to model 
-count data. However, the former is less applicable, since it assumes the 
+count data. However, the former is less applicable because it assumes the 
 population mean and variance of the count variable are equal. The Negative 
 Binomial regression does not make this assumption, and is therefore more 
 flexible. While not an exact test of overdispersion, sample mean and variance 
@@ -845,7 +849,7 @@ print('Sample mean:', df_filtered['SFcount'].mean())
 print('Sample variance:', df_filtered['SFcount'].var())
 ```
 
-There's not enough information here to tell whether a Poisson regression is 
+There's not enough information here to tell whether a Poisson regression is an 
 appropriate approach to modeling `SFcount`. Let's fit both models and assess 
 which is better.
 
@@ -886,22 +890,22 @@ formula = 'SFcount ~ CBcount_Lag1 + total_Lag1 + total + PercentRiseSlope +'\
 # fit Negative Binomial regression
 nb_model = smf.glm(formula=formula, 
                          data=df_model, 
-                         family=sm.families.NegativeBinomial()).fit()
+                         family=sm.families.NegativeBinomial(alpha=1)).fit()
 
 nb_model.summary()
 ```
 
 The Negative Binomial regression does not significanlty improve upon the 
-Poisson regression. $\text{psuedo-}R^2 = 0.16$, which is similar to the Poisson 
-result. Again, all but three predictors are relevant in the regression (the 
-same three from Poisson model). The Pearson chi-square statistic from each 
-regression suggests overdispersion in the data, since it is far greater than 
-the degrees of freedom in both cases.
+Poisson regression. We find that $\text{psuedo-}R^2 = 0.16$, which is similar 
+to the Poisson result. Again, all but three predictors are relevant in the 
+regression (the same three from Poisson model). The Pearson chi-square 
+statistic from each regression suggests overdispersion in the data, since it is 
+far greater than the degrees of freedom in both cases.
 
-To sum up is simple terms:
+To sum up in simple terms:
 
 + Both regressions model the count of SF service requests with about the same 
-  efficacy. Neither performs that well, but the fit is serviceable.
+  efficacy. Neither performs that well, but the fits are serviceable.
 + There is overdispersion in the data, meaning the spread of the data is 
   greater than the average value. This suggests we should prefer the Negative 
   Binomial regression despite the findings of the first bullet.
