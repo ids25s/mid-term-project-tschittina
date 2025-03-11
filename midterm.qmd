@@ -756,7 +756,7 @@ rain = rain[(rain['date(M/D/Y)'] >= '2023-12-31') &
 # get total rain for each day
 rain = rain.groupby('date(M/D/Y)')['Value'].agg(total='sum')
 
-# merge with previous table
+# merge with main table
 rain = rain.reset_index()
 rain['date(M/D/Y)'] = rain['date(M/D/Y)'].dt.date
 counts = counts.merge(rain, left_on='date', right_on='date(M/D/Y)', how='left')
@@ -765,4 +765,23 @@ counts.drop(columns=['date(M/D/Y)'], inplace=True)
 counts.head()
 ```
 
-### (c) Merge landscape data
+### (c) Merge landscape data and ACS variables
+
+The following reads in and merges `data/nyc_zip_lands.csv`, as well as the ACS 
+data.
+
+```{python}
+# read in landscape data
+lands = pd.read_csv('data/nyc_zip_lands.csv')
+
+# convert zipcode to string for merge
+lands['zipcode'] = lands['zipcode'].astype(str)
+
+# merge with main table
+counts = counts.merge(lands, left_on='incident_zip', right_on='zipcode', how='left')
+counts.drop(columns=['zipcode'], inplace=True)
+
+# merge ACS table from earlier to main table
+counts = counts.merge(acs, left_on='incident_zip', right_on='ZIP Code', how='left')
+counts.drop(columns=['ZIP Code'], inplace=True)
+```
