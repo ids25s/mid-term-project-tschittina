@@ -726,10 +726,43 @@ The results of the logistic regression are summarized in simple terms below.
 First, we create time series of complaints by day for each zip code.
 
 ```{python}
-groups = ['incident_zip', 'created_day']
-time_series = df.groupby(groups)['descriptor'].agg(complaint_count='count')
-time_series.head()
+# create column to contain dates
+df['date'] = df['created_date'].dt.date
+
+# Get SF and CB counts
+df['SFcount'] = (df['descriptor'] == 'SF').astype(int)
+df['CBcount'] = (df['descriptor'] == 'CB').astype(int)
+
+# create table of counts by zip code and date
+groups = ['incident_zip', 'date']
+counts = df.groupby(groups)[['SFcount', 'CBcount']].sum().reset_index()
+counts.head()
 ```
 
 ### (b) Merge rainfall data
 
+The following reads in `data/rainfall_CP.csv` and merges it with the dataframe 
+from part (a).
+
+```{python}
+# read in rainfall data
+rain = pd.read_csv('data/rainfall_CP.csv')
+
+# convert to datetime and filter by 2024
+rain['date(M/D/Y)'] = pd.to_datetime(rain['date(M/D/Y)'])
+rain = rain[(rain['date(M/D/Y)'] >= '2023-12-31') &
+            (rain['date(M/D/Y)'] <= '2024-12-31')]
+
+# get total rain for each day
+rain = rain.groupby('date(M/D/Y)')['Value'].agg(total='sum')
+
+# merge with previous table
+rain = rain.reset_index()
+rain['date(M/D/Y)'] = rain['date(M/D/Y)'].dt.date
+counts = counts.merge(rain, left_on='date', right_on='date(M/D/Y)', how='left')
+counts.drop(columns=['date(M/D/Y)'], inplace=True)
+
+counts.head()
+```
+
+### (c) Merge landscape data
