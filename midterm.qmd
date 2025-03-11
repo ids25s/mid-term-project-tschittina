@@ -832,3 +832,79 @@ df_filtered = df_final[(df_final['date'] >= '2024-03-01') &
 ```
 
 ### (f) Poisson versus Negative Binomial regression
+
+A Poisson regression and Negative Binomial regression are both used to model 
+count data. However, the former is less applicable, since it assumes the 
+population mean and variance of the count variable are equal. The Negative 
+Binomial regression does not make this assumption, and is therefore more 
+flexible. While not an exact test of overdispersion, sample mean and variance 
+may be compared as a first step in the analysis.
+
+```{python}
+print('Sample mean:', df_filtered['SFcount'].mean())
+print('Sample variance:', df_filtered['SFcount'].var())
+```
+
+There's not enough information here to tell whether a Poisson regression is 
+appropriate approach to modeling `SFcount`. Let's fit both models and assess 
+which is better.
+
+First, the Poisson regression.
+
+```{python}
+import statsmodels.formula.api as smf
+
+# filter out 2023-12-31 since it has missing values for lagged CBcount
+df_model = df_filtered[df_filtered["date"] >= "2024-01-01"].copy()
+
+# define formula
+formula = 'SFcount ~ CBcount_Lag1 + total_Lag1 + total + PercentRiseSlope +'\
+    'Elevation + CatchPerSeMi + Impervious + pop_density'
+
+# fit Poisson regression
+poisson_model = smf.glm(formula=formula, 
+                         data=df_model, 
+                         family=sm.families.Poisson()).fit()
+
+poisson_model.summary()
+```
+
+The summary tells us the $\text{psuedo-}R^2 = 0.17$. For a $\text{psuedo-}R^2$ 
+this is not terrible, but it's still below average. All but three of our 
+predictors are significant in the regression, which is a good sign. In 
+particular, `total`, `Impervious`, and `pop_density` seem to be the strongest 
+predictors.
+
+Now we'll fit a Negative Binomial regression for comparison. The same 
+predictors are used.
+
+```{python}
+# define formula
+formula = 'SFcount ~ CBcount_Lag1 + total_Lag1 + total + PercentRiseSlope +'\
+    'Elevation + CatchPerSeMi + Impervious + pop_density'
+
+# fit Negative Binomial regression
+nb_model = smf.glm(formula=formula, 
+                         data=df_model, 
+                         family=sm.families.NegativeBinomial()).fit()
+
+nb_model.summary()
+```
+
+The Negative Binomial regression does not significanlty improve upon the 
+Poisson regression. $\text{psuedo-}R^2 = 0.16$, which is similar to the Poisson 
+result. Again, all but three predictors are relevant in the regression (the 
+same three from Poisson model). The Pearson chi-square statistic from each 
+regression suggests overdispersion in the data, since it is far greater than 
+the degrees of freedom in both cases.
+
+To sum up is simple terms:
+
++ Both regressions model the count of SF service requests with about the same 
+  efficacy. Neither performs that well, but the fit is serviceable.
++ There is overdispersion in the data, meaning the spread of the data is 
+  greater than the average value. This suggests we should prefer the Negative 
+  Binomial regression despite the findings of the first bullet.
++ The total rainfall for the current day, the percent of impervious land in the 
+  area, and the population density are the most important predictors of the 
+  number of SF complaints.
