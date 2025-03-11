@@ -785,3 +785,37 @@ counts.drop(columns=['zipcode'], inplace=True)
 counts = counts.merge(acs, left_on='incident_zip', right_on='ZIP Code', how='left')
 counts.drop(columns=['ZIP Code'], inplace=True)
 ```
+
+### (d) Creating 1-day lag of precipitation and CB count
+
+In our model, we'll want to reference the previous day's rainfall and CB count 
+when predicting the current days SF count. We need to construct the covariates 
+`CBcount_Lag1` and `total_Lag1` (total = total rainfall).
+
+```{python}
+# generate range of dates for lag calculation
+all_dates = pd.date_range(start='2023-12-31', end='2024-12-31')
+all_zipcodes = counts['incident_zip'].unique()
+
+# grid of all zip codes and dates
+multi_index = pd.MultiIndex.from_product([all_zipcodes, all_dates],
+                                            names=['incident_zip', 'date'])
+full_df = pd.DataFrame(index=multi_index).reset_index()
+
+# ensure 'date' is in datetime format
+full_df['date'] = pd.to_datetime(full_df['date'])
+counts['date'] = pd.to_datetime(counts['date'])
+
+# merge to include all combinations and fill missing values with 0
+df_final = full_df.merge(counts, on=['incident_zip', 'date'], how='left').fillna(0)
+
+# convert counts to integers
+df_final['SFcount'] = df_final['SFcount'].astype(int)
+df_final['CBcount'] = df_final['CBcount'].astype(int)
+
+# add lag-1 variable for CBcount and precipitation
+df_final['CBcount_Lag1'] = df_final.groupby('incident_zip')['CBcount'].shift(1)
+df_final['total_Lag1'] = df_final.groupby('incident_zip')['total'].shift(1)
+
+df_final[['date', 'CBcount', 'total', 'CBcount_Lag1', 'total_Lag1']].head()
+```
